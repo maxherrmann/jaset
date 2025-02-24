@@ -1,0 +1,65 @@
+name: Build and Publish
+
+on:
+    workflow_dispatch:
+        inputs:
+            versionTag:
+                description: Version
+                required: true
+                type: string
+
+permissions:
+    contents: write
+
+jobs:
+    build:
+        name: Build and Publish
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout changes
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.ref }}
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "lts/*"
+                  registry-url: https://registry.npmjs.org/
+
+            - name: Bump version to ${{ github.event.inputs.versionTag }}
+              run: |
+                  npm version ${{ github.event.inputs.versionTag }} --allow-same-version --no-git-tag-version
+
+            - name: Install
+              run: npm install
+
+            - name: Build package
+              run: npm run build
+
+            - name: Commit and push changes
+              uses: stefanzweifel/git-auto-commit-action@v5
+              with:
+                  commit_message: "Build ${{ github.event.inputs.versionTag }}"
+                  tagging_message: ${{ github.event.inputs.versionTag }}
+                  skip_fetch: true
+                  skip_checkout: true
+
+            - name: Create draft release
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ github.event.inputs.versionTag }}
+                  prerelease: ${{ contains(github.event.inputs.versionTag, '-rc.') }}
+                  draft: true
+                  body_path: .github/RELEASE_TEMPLATE.md
+                  files: |
+                      dist/*.js
+                      dist/*.js.map
+                      dist/*.d.ts
+                  fail_on_unmatched_files: true
+
+            - name: Publish package to NPM
+              run: npm publish --access public
+              env:
+                  NODE_AUTH_TOKEN: ${{secrets.NPM_ACCESS_TOKEN}}

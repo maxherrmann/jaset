@@ -1,0 +1,51 @@
+{
+	"name": "jaset",
+	"version": "1.1.0",
+	"description": "A simple, type-safe implementation of EventTarget with zero dependencies and select enhancements for a better developer experience.",
+	"keywords": [
+		"eventtarget",
+		"event target",
+		"event emitter",
+		"event",
+		"typescript"
+	],
+	"homepage": "https://jaset.js.org",
+	"bugs": {
+		"url": "https://github.com/maxherrmann/jaset/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/maxherrmann/jaset.git"
+	},
+	"author": {
+		"name": "Max Herrmann",
+		"email": "npm@max-herrmann.com",
+		"url": "https://github.com/maxherrmann"
+	},
+	"funding": "https://github.com/sponsors/maxherrmann",
+	"license": "MIT",
+	"type": "module",
+	"exports": {
+		".": "./dist/index.js"
+	},
+	"types": "dist/index.d.ts",
+	"scripts": {
+		"build": "./build.sh",
+		"format": "prettier --write .",
+		"lint": "eslint ."
+	},
+	"devDependencies": {
+		"@tsconfig/recommended": "^1.0.8",
+		"@types/eslint": "^9.6.1",
+		"@types/eslint-config-prettier": "^6.11.3",
+		"@types/node": "^22.13.5",
+		"dts-bundle-generator": "^9.5.1",
+		"esbuild": "^0.25.0",
+		"eslint": "^9.21.0",
+		"eslint-config-prettier": "^10.0.1",
+		"prettier": "^3.5.2",
+		"publint": "^0.3.6",
+		"typescript": "^5.7.3",
+		"typescript-eslint": "^8.24.1"
+	}
+}
