@@ -15,43 +15,47 @@
  * @typeParam AllowWildcardEventType - Whether to allow the use of the wildcard
  *  (`"*"`) event type. Defaults to `false`.
  *
- * {@link [Documentation](https://jaset.js.org)}
+ * {@link https://jaset.js.org | Documentation}
  * |
- * {@link [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget)}
+ * {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget | MDN Reference}
  */
 export default class Jaset<
-	Events extends EventMap<Events>,
+	Events extends EventMap,
 	AllowWildcardEventType extends boolean = false,
 > extends EventTarget {
 	/**
 	 * A map of event types to event listeners.
 	 * @remarks Only contains active event listeners. Event types are removed
-	 *  once their last event listener is removed. Wildcard event listeners, if
-	 *  present, are also included in this map with an event type of `"*"`.
+	 *  once their last event listener is removed.
+	 *
+	 *  Wildcard event listeners, if present, are also included in this map with
+	 *  an event type of `"*"`.
 	 * @readonly
 	 */
-	get eventListeners() {
+	get eventListeners(): ReadonlyMap<
+		| (keyof Events & string)
+		| (AllowWildcardEventType extends true ? Wildcard : never),
+		EventListenerOrEventListenerObject<Events[keyof Events & string]>[]
+	> {
 		const map = new Map<
 			| (keyof Events & string)
 			| (AllowWildcardEventType extends true ? Wildcard : never),
-			EventListener[]
+			EventListenerOrEventListenerObject<Events[keyof Events & string]>[]
 		>()
 
-		for (const [type, listeners] of this.#eventListeners.entries()) {
+		for (const [type, listeners] of this.#eventListeners) {
 			map.set(
 				type,
-				listeners.map(({ callback }) => callback as EventListener),
+				listeners.map((listener) => listener.callback),
 			)
 		}
 
-		const wildcardEventListeners = Array.from(
-			this.#wildcardEventListeners.values(),
-		)
-
-		if (wildcardEventListeners.length > 0) {
+		if (this.#wildcardEventListeners.length > 0) {
 			map.set(
 				wildcard as never,
-				wildcardEventListeners as EventListener[],
+				this.#wildcardEventListeners.map(
+					(listener) => listener.callback,
+				),
 			)
 		}
 
@@ -59,12 +63,17 @@ export default class Jaset<
 	}
 
 	/**
-	 * A set of muted event types.
-	 * @remarks Event listeners for the even types in this set are not invoked
+	 * A set of explicitly muted event types.
+	 * @remarks Event listeners for the event types in this set are not invoked
 	 *  until {@link Jaset.unmute} is called.
+	 *
+	 *  Muting all event types via the wildcard (`"*"`) event type, if allowed,
+	 *  does not populate this set.
 	 * @readonly
 	 */
-	readonly mutedEventTypes: Set<keyof Events & string> = new Set()
+	get mutedEventTypes(): ReadonlySet<keyof Events & string> {
+		return this.#mutedEventTypes
+	}
 
 	/**
 	 * Appends an event listener for events with the specified event type. The
@@ -77,9 +86,9 @@ export default class Jaset<
 	 * @param options - An options object that specifies characteristics about
 	 *  the event listener.
 	 *
-	 * {@link [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener)}
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener | MDN Reference}
 	 */
-	override addEventListener<K extends keyof Events & string>(
+	override addEventListener<K extends EventType<Events>>(
 		type: K | (AllowWildcardEventType extends true ? Wildcard : never),
 		callback: EventListenerOrEventListenerObject<Events[K]> | null,
 		options?: boolean | AddEventListenerOptions,
@@ -94,9 +103,9 @@ export default class Jaset<
 	 * @param callback - The event listener's callback function.
 	 * @param options - The event listener's options object.
 	 *
-	 * {@link [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener)}
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener | MDN Reference}
 	 */
-	override removeEventListener<K extends keyof Events & string>(
+	override removeEventListener<K extends EventType<Events>>(
 		type: K | (AllowWildcardEventType extends true ? Wildcard : never),
 		callback: EventListenerOrEventListenerObject<Events[K]> | null,
 		options?: EventListenerOptions | boolean,
@@ -112,9 +121,9 @@ export default class Jaset<
 	 *  attribute value is `false` or its `preventDefault()` method was not
 	 *  invoked, and `false` otherwise.
 	 *
-	 * {@link [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent)}
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent | MDN Reference}
 	 */
-	override dispatchEvent(event: EventMap[keyof Events & string]) {
+	override dispatchEvent(event: Events[EventType<Events>]) {
 		return this.#emit(event)
 	}
 
@@ -131,9 +140,9 @@ export default class Jaset<
 	 * @param options - An options object that specifies characteristics about
 	 *  the event listener.
 	 *
-	 * {@link [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener)}
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener | MDN Reference}
 	 */
-	on<K extends keyof Events & string>(
+	on<K extends EventType<Events>>(
 		type: K | (AllowWildcardEventType extends true ? Wildcard : never),
 		callback: EventListenerOrEventListenerObject<Events[K]> | null,
 		options?: boolean | AddEventListenerOptions,
@@ -155,9 +164,9 @@ export default class Jaset<
 	 * @param options - An options object that specifies characteristics about
 	 *  the event listener.
 	 *
-	 * {@link [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener)}
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener | MDN Reference}
 	 */
-	once<K extends keyof Events & string>(
+	once<K extends EventType<Events>>(
 		type: K | (AllowWildcardEventType extends true ? Wildcard : never),
 		callback: EventListenerOrEventListenerObject<Events[K]> | null,
 		options?: boolean | Omit<AddEventListenerOptions, "once">,
@@ -177,9 +186,9 @@ export default class Jaset<
 	 * @param callback - The event listener's callback function.
 	 * @param options - The event listener's options object.
 	 *
-	 * {@link [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener)}
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/removeEventListener | MDN Reference}
 	 */
-	off<K extends keyof Events & string>(
+	off<K extends EventType<Events>>(
 		type: K | (AllowWildcardEventType extends true ? Wildcard : never),
 		callback: EventListenerOrEventListenerObject<Events[K]> | null,
 		options?: EventListenerOptions | boolean,
@@ -188,17 +197,20 @@ export default class Jaset<
 	}
 
 	/**
-	 * Removes all event listeners.
+	 * Removes all event listeners for a type.
+	 * @remarks Removes every event listener registered for the given event
+	 *  type, regardless of the options they were added with.
+	 *
+	 *  The wildcard (`"*"`) event type, if allowed, removes all event listeners
+	 *  of every type.
 	 * @param type - The event type to remove all event listeners for.
-	 * @param options - The options object for all event listeners.
 	 */
 	clear(
 		type:
-			| (keyof Events & string)
+			| EventType<Events>
 			| (AllowWildcardEventType extends true ? Wildcard : never),
-		options?: EventListenerOptions | boolean,
 	) {
-		this.#clear(type, options)
+		this.#clear(type)
 	}
 
 	/**
@@ -211,9 +223,9 @@ export default class Jaset<
 	 *  attribute value is `false` or its `preventDefault()` method was not
 	 *  invoked, and `false` otherwise.
 	 *
-	 * {@link [MDN Reference](https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent)}
+	 * {@link https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/dispatchEvent | MDN Reference}
 	 */
-	emit(event: EventMap[keyof Events & string]) {
+	emit(event: Events[EventType<Events>]) {
 		return this.#emit(event)
 	}
 
@@ -221,116 +233,160 @@ export default class Jaset<
 	 * Mutes events of a type.
 	 * @remarks When muted, event listeners for the given event type are not
 	 *  invoked until {@link Jaset.unmute} is called.
+	 *
+	 *  Muting the wildcard (`"*"`) event type, if allowed, mutes all events,
+	 *  including those of types that have no listeners yet or are dispatched in
+	 *  the future.
 	 * @param type - The event type to mute.
 	 */
 	mute(
 		type:
-			| (keyof Events & string)
+			| EventType<Events>
 			| (AllowWildcardEventType extends true ? Wildcard : never),
 	) {
 		if (type === wildcard) {
-			for (const type of Array.from(this.#eventListeners.keys())) {
-				this.mutedEventTypes.add(type)
-			}
+			this.#allMuted = true
 		} else {
-			this.mutedEventTypes.add(type)
+			this.#mutedEventTypes.add(type)
 		}
 	}
 
 	/**
 	 * Unmutes events of a type.
 	 * @remarks Reverses the effects of {@link Jaset.mute}.
+	 *
+	 *  Unmuting the wildcard (`"*"`) event type, if allowed, unmutes all
+	 *  events, including individually muted event types.
 	 * @param type - The event type to unmute.
 	 */
 	unmute(
 		type:
-			| (keyof Events & string)
+			| EventType<Events>
 			| (AllowWildcardEventType extends true ? Wildcard : never),
 	) {
 		if (type === wildcard) {
-			for (const type of Array.from(this.#eventListeners.keys())) {
-				this.mutedEventTypes.delete(type)
-			}
+			this.#allMuted = false
+			this.#mutedEventTypes.clear()
 		} else {
-			this.mutedEventTypes.delete(type)
+			this.#mutedEventTypes.delete(type)
 		}
 	}
 
-	readonly #eventListeners: Map<
+	readonly #eventListeners = new Map<
 		keyof Events & string,
-		{
-			callback: EventListenerOrEventListenerObject<
-				Events[keyof Events & string]
-			> | null
-			listener: EventListener
-		}[]
-	> = new Map()
+		StoredListener<Events[keyof Events & string]>[]
+	>()
 
-	readonly #wildcardEventListeners: Set<EventListenerOrEventListenerObject<
+	readonly #wildcardEventListeners: StoredWildcardListener<
 		Events[keyof Events & string]
-	> | null> = new Set()
+	>[] = []
+
+	readonly #mutedEventTypes = new Set<keyof Events & string>()
+
+	#allMuted = false
+
+	readonly #dispatchingWildcardTypes = new Set<string>()
 
 	#addEventListener<K extends keyof Events & string>(
 		type: K | (AllowWildcardEventType extends true ? Wildcard : never),
 		callback: EventListenerOrEventListenerObject<Events[K]> | null,
 		options?: boolean | AddEventListenerOptions,
 	) {
+		// `EventTarget` ignores `null` callbacks.
+		if (!callback) {
+			return
+		}
+
+		const capture = normalizeCapture(options)
+		const once =
+			typeof options === "object" ? (options.once ?? false) : false
+		const signal = typeof options === "object" ? options.signal : undefined
+
+		// `EventTarget` never registers a listener for an aborted signal.
+		if (signal?.aborted) {
+			return
+		}
+
+		const callbackToStore = callback as EventListenerOrEventListenerObject<
+			Events[keyof Events & string]
+		>
+
 		if (type === wildcard) {
-			if (this.#wildcardEventListeners.has(callback as never)) {
+			// Prevent duplicate event listeners, just like `EventTarget`.
+			if (
+				this.#wildcardEventListeners.some(
+					(listener) =>
+						listener.callback === callbackToStore &&
+						listener.capture === capture,
+				)
+			) {
 				return
 			}
 
-			this.#wildcardEventListeners.add(callback as never)
+			const entry: StoredWildcardListener<Events[keyof Events & string]> =
+				{ callback: callbackToStore, capture, once }
+
+			this.#registerAbortCleanup(signal, entry, () =>
+				this.#removeWildcardListener(callbackToStore, capture),
+			)
+
+			this.#wildcardEventListeners.push(entry)
 
 			return
 		}
 
+		const typedType = type as keyof Events & string
+		const listeners = this.#eventListeners.get(typedType)
+
 		// Prevent duplicate event listeners, just like `EventTarget`.
 		if (
-			this.#eventListeners
-				.get(type as never)
-				?.some((listener) => listener.callback === callback)
+			listeners?.some(
+				(listener) =>
+					listener.callback === callbackToStore &&
+					listener.capture === capture,
+			)
 		) {
 			return
 		}
 
-		let listener: EventListener = (evt) => {
-			if (!this.mutedEventTypes.has(evt.type as never)) {
-				if (typeof callback === "function") {
-					callback(evt as never)
-				} else if (callback?.handleEvent) {
-					callback.handleEvent(evt as never)
-				}
+		// Muting and the `once` option are handled here, rather than via the
+		// native `once` option, so that a muted `once` listener is preserved
+		// until it is actually invoked while unmuted, and so that the internal
+		// bookkeeping stays in sync when the listener removes itself.
+		const nativeListener: EventListenerFn = (event) => {
+			if (this.#isMuted(event.type)) {
+				return
+			}
+
+			invokeListener(
+				callbackToStore,
+				event as Events[keyof Events & string],
+			)
+
+			if (once) {
+				this.#removeTypedListener(typedType, callbackToStore, capture)
 			}
 		}
 
-		if (typeof options === "object" && options.once) {
-			const listener_ = listener
+		super.addEventListener(typedType, nativeListener, {
+			capture,
+			passive: typeof options === "object" ? options.passive : undefined,
+		})
 
-			listener = (evt) => {
-				if (this.mutedEventTypes.has(evt.type as never)) {
-					super.addEventListener(evt.type, listener, options)
-				} else {
-					listener_(evt)
-					this.#removeEventListener(
-						evt.type as never,
-						listener,
-						options,
-					)
-				}
-			}
+		const entry: StoredListener<Events[keyof Events & string]> = {
+			callback: callbackToStore,
+			nativeListener,
+			capture,
 		}
 
-		super.addEventListener(type, listener, options)
+		this.#registerAbortCleanup(signal, entry, () =>
+			this.#removeTypedListener(typedType, callbackToStore, capture),
+		)
 
-		if (!this.#eventListeners.has(type as never)) {
-			this.#eventListeners.set(type as never, [
-				{ callback: callback as never, listener },
-			])
+		if (listeners) {
+			listeners.push(entry)
 		} else {
-			this.#eventListeners
-				.get(type as never)
-				?.push({ callback: callback as never, listener })
+			this.#eventListeners.set(typedType, [entry])
 		}
 	}
 
@@ -339,82 +395,202 @@ export default class Jaset<
 		callback: EventListenerOrEventListenerObject<Events[K]> | null,
 		options?: EventListenerOptions | boolean,
 	) {
+		// `EventTarget` ignores `null` callbacks.
+		if (!callback) {
+			return
+		}
+
+		const capture = normalizeCapture(options)
+		const callbackToRemove = callback as EventListenerOrEventListenerObject<
+			Events[keyof Events & string]
+		>
+
 		if (type === wildcard) {
-			this.#wildcardEventListeners.delete(callback as never)
-
-			return
-		}
-
-		const listener = this.#eventListeners
-			.get(type as never)
-			?.find((listener) => listener.callback === callback)
-
-		if (!listener) {
-			return
-		}
-
-		super.removeEventListener(type as string, listener.listener, options)
-
-		this.#eventListeners.set(
-			type as never,
-			this.#eventListeners
-				.get(type as never)
-				?.filter((listener) => listener.callback !== callback) || [],
-		)
-
-		// Remove the event type if there are no more listeners.
-		if (this.#eventListeners.get(type as never)?.length === 0) {
-			this.#eventListeners.delete(type as never)
-			this.mutedEventTypes.delete(type as never)
+			this.#removeWildcardListener(callbackToRemove, capture)
+		} else {
+			this.#removeTypedListener(
+				type as keyof Events & string,
+				callbackToRemove,
+				capture,
+			)
 		}
 	}
 
-	#emit(event: EventMap[keyof Events & string]) {
-		const value = super.dispatchEvent(event)
+	#removeTypedListener(
+		type: keyof Events & string,
+		callback: EventListenerOrEventListenerObject<
+			Events[keyof Events & string]
+		>,
+		capture: boolean,
+	) {
+		const listeners = this.#eventListeners.get(type)
 
-		// Trigger wildcard event listeners.
-		for (const listener of this.#wildcardEventListeners) {
-			if (!this.mutedEventTypes.has(event.type as never)) {
-				if (typeof listener === "function") {
-					listener(event as never)
-				} else if (listener?.handleEvent) {
-					listener.handleEvent(event as never)
+		if (!listeners) {
+			return
+		}
+
+		const index = listeners.findIndex(
+			(listener) =>
+				listener.callback === callback && listener.capture === capture,
+		)
+
+		if (index === -1) {
+			return
+		}
+
+		const [entry] = listeners.splice(index, 1)
+
+		super.removeEventListener(type, entry.nativeListener, {
+			capture: entry.capture,
+		})
+		entry.removeAbortListener?.()
+
+		// Remove the event type if there are no more listeners.
+		if (listeners.length === 0) {
+			this.#eventListeners.delete(type)
+		}
+	}
+
+	#removeWildcardListener(
+		callback: EventListenerOrEventListenerObject<
+			Events[keyof Events & string]
+		>,
+		capture: boolean,
+	) {
+		const index = this.#wildcardEventListeners.findIndex(
+			(listener) =>
+				listener.callback === callback && listener.capture === capture,
+		)
+
+		if (index === -1) {
+			return
+		}
+
+		const [entry] = this.#wildcardEventListeners.splice(index, 1)
+		entry.removeAbortListener?.()
+	}
+
+	#registerAbortCleanup(
+		signal: AbortSignal | undefined,
+		entry: { removeAbortListener?: () => void },
+		remove: () => void,
+	) {
+		if (!signal) {
+			return
+		}
+
+		const onAbort = () => {
+			remove()
+		}
+
+		signal.addEventListener("abort", onAbort, { once: true })
+		entry.removeAbortListener = () => {
+			signal.removeEventListener("abort", onAbort)
+		}
+	}
+
+	#isMuted(type: string) {
+		return (
+			this.#allMuted ||
+			this.#mutedEventTypes.has(type as keyof Events & string)
+		)
+	}
+
+	#emit(event: Event) {
+		const type = event.type
+		const registered: {
+			nativeListener: EventListenerFn
+			capture: boolean
+		}[] = []
+
+		// Dispatch wildcard listeners through the native `EventTarget` so that
+		// they observe the correct `currentTarget`/`eventPhase` and benefit
+		// from the native per-listener error isolation. A type that is already
+		// mid-dispatch reuses the listeners registered by the outer dispatch,
+		// avoiding duplicate invocations during re-entrant dispatch.
+		if (
+			this.#wildcardEventListeners.length > 0 &&
+			!this.#dispatchingWildcardTypes.has(type)
+		) {
+			this.#dispatchingWildcardTypes.add(type)
+
+			for (const entry of [...this.#wildcardEventListeners]) {
+				const nativeListener: EventListenerFn = (evt) => {
+					if (
+						!this.#wildcardEventListeners.includes(entry) ||
+						this.#isMuted(evt.type)
+					) {
+						return
+					}
+
+					invokeListener(
+						entry.callback,
+						evt as Events[keyof Events & string],
+					)
+
+					if (entry.once) {
+						this.#removeWildcardListener(
+							entry.callback,
+							entry.capture,
+						)
+					}
 				}
+
+				super.addEventListener(type, nativeListener, {
+					capture: entry.capture,
+				})
+
+				registered.push({ nativeListener, capture: entry.capture })
 			}
 		}
 
-		return value
+		try {
+			return super.dispatchEvent(event)
+		} finally {
+			for (const { nativeListener, capture } of registered) {
+				super.removeEventListener(type, nativeListener, { capture })
+			}
+
+			if (registered.length > 0) {
+				this.#dispatchingWildcardTypes.delete(type)
+			}
+		}
 	}
 
 	#clear(
 		type:
 			| (keyof Events & string)
 			| (AllowWildcardEventType extends true ? Wildcard : never),
-		options?: EventListenerOptions | boolean,
 	) {
 		if (type === wildcard) {
-			this.#wildcardEventListeners.clear()
+			for (const entry of [...this.#wildcardEventListeners]) {
+				entry.removeAbortListener?.()
+			}
+			this.#wildcardEventListeners.length = 0
 
-			for (const type of Array.from(this.#eventListeners.keys())) {
-				// Calling this function recursively is safe here, as the event
-				// type read from `this.#eventListeners` can never be a
-				// wildcard.
-				this.#clear(type, options)
+			for (const knownType of [...this.#eventListeners.keys()]) {
+				this.#clearType(knownType)
 			}
 		} else {
-			const listeners = this.#eventListeners.get(type)
-
-			if (!listeners) {
-				return
-			}
-
-			// `Array.from(listeners)` is used to ensure all listeners are
-			// iterated over, even if they are removed during the iteration, due
-			// to `listeners` being a reference.
-			for (const listener of Array.from(listeners)) {
-				this.#removeEventListener(type, listener.callback, options)
-			}
+			this.#clearType(type)
 		}
+	}
+
+	#clearType(type: keyof Events & string) {
+		const listeners = this.#eventListeners.get(type)
+
+		if (!listeners) {
+			return
+		}
+
+		for (const entry of [...listeners]) {
+			super.removeEventListener(type, entry.nativeListener, {
+				capture: entry.capture,
+			})
+			entry.removeAbortListener?.()
+		}
+
+		this.#eventListeners.delete(type)
 	}
 }
 
@@ -424,17 +600,75 @@ export { Jaset as EventTarget }
  * A map of event types to events.
  */
 export type EventMap<T extends Record<string, Event> = Record<string, Event>> =
-	{ [K in keyof T]: T[K] }
+	T
 
 type Wildcard = "*"
-const wildcard: Wildcard = "*"
+
+/**
+ * The explicitly declared string event types of an event map.
+ * @remarks Excludes index signatures (e.g. those introduced by
+ *  `Record<string, Event>`) so that event maps which do not declare specific
+ *  event types — including the default {@link EventMap} — do not permit
+ *  arbitrary, unsupported event types.
+ */
+type EventType<Events extends EventMap> = keyof {
+	[Key in keyof Events as string extends Key
+		? never
+		: number extends Key
+			? never
+			: symbol extends Key
+				? never
+				: Key]: never
+} &
+	string
 
 type EventListenerOrEventListenerObject<T extends Event = Event> =
-	| EventListener<T>
+	| EventListenerFn<T>
 	| EventListenerObject<T>
 
-type EventListener<T extends Event = Event> = (evt: T) => void
+// The event parameter is intentionally compared bivariantly (via method
+// syntax) so that listeners for a narrower event type remain assignable where
+// listeners for a broader event type are expected. This mirrors the variance
+// of the DOM's own event listener types and allows subclasses that narrow
+// their event map to stay structurally assignable to their base class. That's
+// why we use a bivariance hack here by defining the function type via an object
+// property (`jaset`) rather than directly as a function type, which would be
+// contravariant in the event parameter.
+type EventListenerFn<T extends Event = Event> = {
+	jaset(event: T): void
+}["jaset"]
 
 interface EventListenerObject<T extends Event = Event> {
-	handleEvent(object: T): void
+	handleEvent(event: T): void
+}
+
+type StoredListener<E extends Event = Event> = {
+	callback: EventListenerOrEventListenerObject<E>
+	nativeListener: EventListenerFn
+	capture: boolean
+	removeAbortListener?: () => void
+}
+
+type StoredWildcardListener<E extends Event = Event> = {
+	callback: EventListenerOrEventListenerObject<E>
+	capture: boolean
+	once: boolean
+	removeAbortListener?: () => void
+}
+
+const wildcard: Wildcard = "*"
+
+function normalizeCapture(options?: boolean | EventListenerOptions): boolean {
+	return typeof options === "boolean" ? options : (options?.capture ?? false)
+}
+
+function invokeListener<E extends Event>(
+	callback: EventListenerOrEventListenerObject<E>,
+	event: E,
+) {
+	if (typeof callback === "function") {
+		callback(event)
+	} else {
+		callback.handleEvent(event)
+	}
 }

@@ -2,19 +2,16 @@
 	"$schema": "https://json.schemastore.org/tsconfig",
 	"extends": "@tsconfig/recommended",
 	"compilerOptions": {
-		"allowJs": true,
-		"checkJs": true,
 		"declaration": true,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"incremental": true,
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
+		"emitDeclarationOnly": true,
+		"module": "esnext",
+		"moduleResolution": "bundler",
 		"noEmitOnError": true,
-		"outDir": "build",
+		"outDir": "./dist",
+		"rootDir": "./src",
 		"strict": true,
-		"target": "ES2019",
-		"emitDeclarationOnly": true
+		"target": "esnext",
+		"verbatimModuleSyntax": true
 	},
-	"include": ["src/**/*.ts"]
+	"include": ["./src/**/*.ts"]
 }
