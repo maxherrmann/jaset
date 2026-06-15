@@ -33,7 +33,7 @@ fix a bug. Please create a minimal verifiable setup that reproduces the bug.
 
 <!-- Add the jaset version you are using. -->
 
-3.0.0
+1.2.0
 
 #### Environment
 

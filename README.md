@@ -55,6 +55,31 @@ class MyEvent extends Event {
 }
 ```
 
+> [!IMPORTANT]
+> If you implement multiple events that share the same interface, you must add an explicit `type` property to ensure maximum type-safety. Otherwise, the TypeScript compiler will not be able to distinguish between these events.
+>
+> Example:
+
+```ts
+class MyEvent1 extends Event {
+	readonly type = "my-event-1" as const
+
+	constructor() {
+		super("my-event-1")
+	}
+}
+
+class MyEvent2 extends Event {
+	readonly type = "my-event-2" as const
+
+	constructor() {
+		super("my-event-2")
+	}
+}
+```
+
+#### Use `CustomEvent` instead of `Event`
+
 If you prefer to use [`CustomEvent`](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent), just use it directly in your event map.
 
 ```ts
@@ -118,15 +143,10 @@ myEventTarget.clear("my-event")
 
 ### Event listener map <sup>✨</sup>
 
-A `Map` of event types to event listeners is available via `eventListeners`:
-
-```ts
-myEventTarget.eventListeners
-// Map<keyof MyEventMap | "*", EventListener[]>
-```
+A `ReadonlyMap` of event types to event listeners is exposed via `eventListeners`.
 
 > [!NOTE]
-> This map only contains active event listeners. Event types are removed once their last event listener is removed. Wildcard event listeners, if present, are also included in this map with an event type of `"*"`.
+> This read-only map only contains active event listeners. Event types are removed once their last event listener is removed. Wildcard event listeners, if present, are also included in this map with an event type of `"*"`.
 
 ### Mute events <sup>✨</sup>
 
@@ -143,12 +163,15 @@ myEventTarget.emit(new MyEvent())
 myEventTarget.unmute("my-event")
 ```
 
-A `Set` of all muted event types is available via `mutedEventTypes`:
+A `ReadonlySet` of explicitly muted event types is available via `mutedEventTypes`:
 
 ```ts
 myEventTarget.mutedEventTypes
-// Set<keyof MyEventMap>
+// ReadonlySet<keyof MyEventMap>
 ```
+
+> [!NOTE]
+> Muting is independent of event listeners. An event type stays muted until you unmute it, even if it currently has no listeners. Muting the wildcard event type (`"*"`) mutes all events, including event types that have no listeners yet or are dispatched in the future; this does not populate `mutedEventTypes`. Unmuting the wildcard event type unmutes all events.
 
 ### Wildcard event type <sup>✨</sup>
 
@@ -168,6 +191,8 @@ function onAnyEvent(event: MyEvent | MyOtherEvent) {
 
 > [!IMPORTANT]
 > The wildcard event type is disallowed by default for cleaner IntelliSense suggestions. You can allow it by setting the generic type parameter `AllowWildcardEventType` to `true`.
+>
+> Example:
 
 ```ts
 import EventTarget from "jaset"
